@@ -7,7 +7,9 @@ const Index = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [apiKey, setApiKey] = useState("");
   const [analysis, setAnalysis] = useState("");
+  const [error, setError] = useState("");
   const videoRef = useRef(null);
 
   const handleVideoUpload = (event) => {
@@ -38,9 +40,30 @@ const Index = () => {
     setCurrentTime(value);
   };
 
-  const handleAnalyze = () => {
-    // TODO: Implement video analysis logic here
-    setAnalysis("Video analysis results will be displayed here.");
+  const handleAnalyze = async () => {
+    if (!apiKey) {
+      setError("Please enter your ChatGPT-4 API key.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", videoRef.current.files[0]);
+
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      setAnalysis(data.choices[0].message.content);
+      setError("");
+    } catch (error) {
+      setError("Video analysis failed. Please check your API key and try again.");
+    }
   };
 
   return (
@@ -49,7 +72,10 @@ const Index = () => {
         Video Analysis Interface
       </Heading>
       <VStack spacing={8} align="stretch">
-        <Input type="file" accept="video/*" onChange={handleVideoUpload} />
+        <VStack spacing={4} align="stretch">
+          <Input type="file" accept="video/*" onChange={handleVideoUpload} />
+          <Input type="password" placeholder="Enter your ChatGPT-4 API key" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+        </VStack>
         {videoSrc && (
           <Box position="relative">
             <video ref={videoRef} src={videoSrc} onTimeUpdate={handleTimeUpdate} width="100%" />
@@ -74,11 +100,14 @@ const Index = () => {
         <Button colorScheme="blue" onClick={handleAnalyze}>
           Analyze Video
         </Button>
-        {analysis && (
-          <Box borderWidth={1} borderRadius="md" p={4}>
-            <Text>{analysis}</Text>
-          </Box>
+        {error && (
+          <Text color="red.500" textAlign="center">
+            {error}
+          </Text>
         )}
+        <Box borderWidth={1} borderRadius="md" p={4}>
+          <Text>{analysis}</Text>
+        </Box>
       </VStack>
     </Box>
   );
